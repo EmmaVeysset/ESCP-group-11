@@ -46,4 +46,4 @@ These questions aren't here to slow you down — they're part of what's being ev
 
 ## Our Approach
 
-*[To be filled in by the team at the end.]*
+We built a browser-based Germany launch decision cockpit rather than a static recommendation. It makes the price and channel trade-off visible: users can change the three tested prices and allocate the launch mix across DTC, gym & office, and grocery to see the resulting acceptance signal, contribution per unit, margin and CAC payback. The default recommendation is a €2.19 summer pilot led by DTC and gym & office: it protects enough contribution to fund learning while retaining much more trial potential than €2.59. We deliberately defer broad grocery rollout until repeat purchase and a 3:1 LTV:CAC ratio are demonstrated. The cockpit uses only aggregated, non-personal figures from the data room; it does not expose respondent names, emails, or row-level survey data.
