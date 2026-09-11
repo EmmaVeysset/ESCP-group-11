@@ -27,6 +27,26 @@ import {
 } from './lib/model';
 import { tradeoffNarrative } from './lib/insights';
 import { eur, eur0, pct, num0 } from './lib/format';
+import eurostatValidationRaw from './data/generated/eurostat-validation.json';
+
+// The JSON import's inferred type would otherwise reflect whatever this file's *current*
+// contents happen to be (e.g. all-numbers if the last build succeeded) rather than the full
+// { ok } | { unreachable | error } shape it can actually take. An explicit discriminated union
+// keeps `status === 'ok'` a real type-narrowing check — and keeps typecheck stable even on a
+// build where Eurostat was unreachable — instead of a build-content-dependent literal type.
+type EurostatValidationOk = {
+  source: string; dataset: string; coicop: string; geo: string; fetchedAt: string; note: string;
+  status: 'ok';
+  year: number; eurostatValueEur: number; ourValueEur: number; deltaEur: number; deltaPct: number; categoryShare: number;
+  ourTotalEur: number; eurostatTotalEur: number; eurostatImpliedPopulation: number;
+};
+type EurostatValidationSkipped = {
+  source: string; dataset: string; coicop: string; geo: string; fetchedAt: string; note: string;
+  status: 'unreachable' | 'error';
+  year: number | null; eurostatValueEur: null; ourValueEur: null; deltaEur: null; deltaPct: null; categoryShare: null;
+  ourTotalEur: null; eurostatTotalEur: null; eurostatImpliedPopulation: null;
+};
+const eurostatValidation = eurostatValidationRaw as EurostatValidationOk | EurostatValidationSkipped;
 
 const HOME_MARKET_SALES_MIX: ChannelWeights = { 'DTC Online': 32, 'Retail/Grocery': 50, 'Gym & Office': 18 };
 const HOME_MARKET_MARKETING_MIX: MarketingWeights = { 'Paid Social': 4, 'Influencer / Content': 7, 'Retail Sampling': 62, 'Referral / Subscription': 27 };
@@ -276,6 +296,17 @@ export function App() {
               </ul>
             ) : (
               <p className="mt-3 text-sm text-[#3c4a47]">This selection is close to every optimum the model can see — Jonas and Elena's asks are, for once, not in tension here.</p>
+            )}
+            {eurostatValidation.status === 'ok' && (
+              <p className="mt-3 border-t border-[#e2d5b8] pt-3 text-xs text-[#61706d]">
+                Cross-check: our functional-beverage market for {eurostatValidation.year} ({eur(eurostatValidation.ourTotalEur / 1e9, 2)}bn) is
+                ~{pct(eurostatValidation.categoryShare * 100, 0)} of Germany's total non-alcoholic beverage spend that year — Eurostat records{' '}
+                {eur(eurostatValidation.eurostatValueEur, 2)}/person × {(eurostatValidation.eurostatImpliedPopulation / 1e6).toFixed(1)}M residents ≈{' '}
+                {eur(eurostatValidation.eurostatTotalEur / 1e9, 2)}bn total for the {eurostatValidation.coicop} category. Functional beverages being
+                roughly a quarter of the broader category is a plausible order of magnitude for a fast-growing niche within an established
+                mass-market. Source: Eurostat {eurostatValidation.dataset} ({eurostatValidation.coicop}), fetched{' '}
+                {eurostatValidation.fetchedAt.slice(0, 10)}.
+              </p>
             )}
           </Card>
         </div>
