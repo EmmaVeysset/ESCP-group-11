@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prepare:data": "node --experimental-strip-types scripts/prepare-data.ts",
+    "predev": "pnpm run prepare:data",
     "dev": "vite",
     "build": "pnpm run prepare:data && tsc -b && vite build",
     "preview": "vite preview",

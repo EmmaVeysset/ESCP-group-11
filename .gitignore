@@ -7,6 +7,9 @@ dist/
 .env*
 !.env.example
 
+# Local dev-preview server config (machine-specific paths)
+.claude/
+
 # Operating-system files
 .DS_Store
 Thumbs.db
