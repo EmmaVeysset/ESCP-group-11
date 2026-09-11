@@ -10,12 +10,6 @@ body {
   margin: 0;
 }
 
-main {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 5rem 1.5rem;
-}
-
 .eyebrow {
   color: #61706d;
   font-size: 0.875rem;
@@ -24,8 +18,6 @@ main {
   text-transform: uppercase;
 }
 
-h1 {
-  margin: 0.5rem 0;
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
-  line-height: 1;
+input[type='range'] {
+  height: 1.25rem;
 }
