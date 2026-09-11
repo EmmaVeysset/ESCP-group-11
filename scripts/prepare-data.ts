@@ -248,6 +248,156 @@ async function prepareMarketContext() {
   };
 }
 
+// --- Eurostat validation: independent sanity-check of our functional-beverage market sizing
+// against Eurostat's official household consumption statistics. Aggregate public statistics,
+// no PII — but writeJson below still follows the same explicit-shape discipline as every other
+// prepared file, and network failure never fails the build (see the try/catch in
+// fetchEurostatValidation).
+
+const EUROSTAT_API_BASE = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data';
+const EUROSTAT_DATASET = 'nama_10_co3_p3'; // Household final consumption expenditure by purpose (COICOP)
+const EUROSTAT_COICOP = 'CP012'; // Non-alcoholic beverages
+const EUROSTAT_GEO = 'DE';
+const EUROSTAT_TIMEOUT_MS = 8000;
+
+type JsonStatResponse = {
+  id: string[];
+  size: number[];
+  value: Record<string, number>;
+  dimension: Record<string, { category: { index: Record<string, number> } }>;
+};
+
+function computeStrides(sizes: number[]): number[] {
+  const strides = new Array(sizes.length).fill(1);
+  for (let i = sizes.length - 2; i >= 0; i -= 1) strides[i] = strides[i + 1] * sizes[i + 1];
+  return strides;
+}
+
+/**
+ * Decodes a JSON-stat 2.0 response into a year->value series. `fixedCategories` pins every
+ * dimension except `time` to one category code; works regardless of the dataset's dimension
+ * order, since it reads that order from the response itself rather than assuming a layout.
+ */
+function decodeJsonStatByYear(response: JsonStatResponse, fixedCategories: Record<string, string>): Map<number, number> {
+  const strides = computeStrides(response.size);
+  const dimPosition = Object.fromEntries(response.id.map((name, index) => [name, index]));
+
+  let baseIndex = 0;
+  for (const dimName of response.id) {
+    if (dimName === 'time') continue;
+    const categoryCode = fixedCategories[dimName];
+    const categoryIndex = response.dimension[dimName]?.category.index[categoryCode];
+    if (categoryIndex === undefined) throw new Error(`Eurostat response missing expected category "${categoryCode}" for dimension "${dimName}"`);
+    baseIndex += categoryIndex * strides[dimPosition[dimName]];
+  }
+
+  const timeStride = strides[dimPosition.time];
+  const series = new Map<number, number>();
+  for (const [yearLabel, timeIndex] of Object.entries(response.dimension.time.category.index)) {
+    const value = response.value[baseIndex + timeIndex * timeStride];
+    if (value !== undefined) series.set(Number.parseInt(yearLabel, 10), value);
+  }
+  return series;
+}
+
+async function fetchEurostatSeries(unitCode: string, signal: AbortSignal): Promise<Map<number, number>> {
+  const url = `${EUROSTAT_API_BASE}/${EUROSTAT_DATASET}?format=JSON&geo=${EUROSTAT_GEO}&coicop=${EUROSTAT_COICOP}&unit=${unitCode}&lang=EN`;
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Eurostat API returned HTTP ${response.status}`);
+  const body = (await response.json()) as JsonStatResponse;
+  return decodeJsonStatByYear(body, { freq: 'A', unit: unitCode, coicop: EUROSTAT_COICOP, geo: EUROSTAT_GEO });
+}
+
+type EurostatValidation = {
+  source: 'Eurostat';
+  dataset: string;
+  coicop: string;
+  geo: string;
+  year: number | null;
+  eurostatValueEur: number | null;
+  ourValueEur: number | null;
+  deltaEur: number | null;
+  deltaPct: number | null;
+  categoryShare: number | null;
+  ourTotalEur: number | null;
+  eurostatTotalEur: number | null;
+  eurostatImpliedPopulation: number | null;
+  fetchedAt: string;
+  status: 'ok' | 'unreachable' | 'error';
+  note: string;
+};
+
+const EUROSTAT_SCOPE_NOTE =
+  'Category-share cross-check, not a precise validation: Eurostat covers ALL non-alcoholic ' +
+  'beverages (water, soda, juice, coffee, tea, energy drinks combined), while our figure is ' +
+  "LUMEN's functional-beverage-only market total. categoryShare (ourValueEur / eurostatValueEur) " +
+  'is the plausible fraction of that broader category functional beverages represent — a niche ' +
+  'occupying roughly a quarter of an established mass-market category is a sane order of ' +
+  'magnitude, not evidence of a data error in either source.';
+
+async function fetchEurostatValidation(marketContextRows: { metric: string; value: number; year: number }[]): Promise<EurostatValidation> {
+  const base = {
+    source: 'Eurostat' as const,
+    dataset: EUROSTAT_DATASET,
+    coicop: EUROSTAT_COICOP,
+    geo: EUROSTAT_GEO,
+    fetchedAt: new Date().toISOString(),
+  };
+  const empty = {
+    year: null, eurostatValueEur: null, ourValueEur: null, deltaEur: null, deltaPct: null,
+    categoryShare: null, ourTotalEur: null, eurostatTotalEur: null, eurostatImpliedPopulation: null,
+  };
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), EUROSTAT_TIMEOUT_MS);
+
+  try {
+    const [perCapitaSeries, totalMillionEurSeries] = await Promise.all([
+      fetchEurostatSeries('CP_EUR_HAB', controller.signal),
+      fetchEurostatSeries('CP_MEUR', controller.signal),
+    ]);
+
+    const latestYear = Math.max(...perCapitaSeries.keys());
+    const eurostatValueEur = perCapitaSeries.get(latestYear);
+    const totalMillionEurValue = totalMillionEurSeries.get(latestYear);
+
+    if (eurostatValueEur === undefined || totalMillionEurValue === undefined) {
+      console.warn(`Eurostat validation: no usable data point for ${latestYear}; skipping validation.`);
+      return { ...base, ...empty, year: latestYear, status: 'error', note: `Eurostat had no usable ${latestYear} data point.` };
+    }
+
+    const eurostatImpliedPopulation = (totalMillionEurValue * 1_000_000) / eurostatValueEur;
+    const ourTotalEur = marketContextRows
+      .filter((row) => row.metric === 'market_size_eur' && row.year === latestYear)
+      .reduce((sum, row) => sum + row.value, 0);
+
+    if (ourTotalEur <= 0) {
+      console.warn(`Eurostat validation: market_context.csv has no market_size_eur rows for ${latestYear}; skipping validation.`);
+      return { ...base, ...empty, year: latestYear, eurostatValueEur, status: 'error', note: `market_context.csv has no figures for ${latestYear}.` };
+    }
+
+    const ourValueEur = ourTotalEur / eurostatImpliedPopulation;
+    const deltaEur = ourValueEur - eurostatValueEur;
+    const deltaPct = (deltaEur / eurostatValueEur) * 100;
+    const categoryShare = ourValueEur / eurostatValueEur;
+    const eurostatTotalEur = totalMillionEurValue * 1_000_000;
+
+    return {
+      ...base, year: latestYear, eurostatValueEur, ourValueEur, deltaEur, deltaPct, categoryShare,
+      ourTotalEur, eurostatTotalEur, eurostatImpliedPopulation, status: 'ok', note: EUROSTAT_SCOPE_NOTE,
+    };
+  } catch (error) {
+    // TypeError is what undici/fetch throws for DNS/connection-level failures; AbortError is our
+    // own timeout. Both mean "couldn't reach Eurostat" as opposed to a reachable-but-bad response.
+    const isNetworkFailure = error instanceof Error && (error.name === 'AbortError' || error instanceof TypeError);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Eurostat validation skipped (${isNetworkFailure ? 'unreachable' : 'error'}): ${message}`);
+    return { ...base, ...empty, status: isNetworkFailure ? 'unreachable' : 'error', note: `Skipped: ${message}` };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 async function preparePriceSensitivityCurve() {
   const { headers, rows } = await readCsvRows('price_sensitivity_survey.csv');
   const records = toRecords(headers, rows).map((r) => ({
@@ -353,6 +503,8 @@ async function main() {
     preparePriceSensitivityCurve(),
   ]);
 
+  const eurostatValidation = await fetchEurostatValidation(marketContext.rows);
+
   await Promise.all([
     writeJson('customer-survey.safe.json', customerSurvey),
     writeJson('historical-sales.cleaned.json', historicalSales),
@@ -365,11 +517,13 @@ async function main() {
     writeJson('competitor-prices-by-channel.json', competitorPricesByChannel),
     writeJson('market-context.json', marketContext),
     writeJson('price-sensitivity-curve.json', priceSensitivityCurve),
+    writeJson('eurostat-validation.json', eurostatValidation),
   ]);
 
   console.log(
     `Prepared ${customerSurvey.rowCount} PII-safe survey rows, ${historicalSales.rows.length} deduplicated sales rows, ` +
-      `and a ${priceSensitivityCurve.prices.length}-point acceptance curve validated against price_test_results.csv.`,
+      `a ${priceSensitivityCurve.prices.length}-point acceptance curve validated against price_test_results.csv, ` +
+      `and an Eurostat validation check (status: ${eurostatValidation.status}).`,
   );
 }
 
