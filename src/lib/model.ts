@@ -127,21 +127,17 @@ export function cacFor(channel: MarketingChannel): number {
   return marketingFunnel.summaryByChannel[channel].avgCacEur;
 }
 
-const ACCEPTANCE_AT_REFERENCE_PRICE = acceptancePctAt(REFERENCE_RETAIL_PRICE_EUR);
-const CAC_MULTIPLIER_BOUNDS: [number, number] = [0.5, 5];
-
 /**
- * Historical CAC was observed at the home-market reference price (~EUR1.35), not at Germany's
- * candidate prices. A price fewer people find acceptable should be harder — not just less
- * profitable per sale — to convert, so CAC is rescaled by relative acceptance vs the reference
- * price. This is a modelling assumption (bounded 0.5x-5x), not an empirical figure.
+ * Decision 001 item 2 (docs/DECISIONS.md): the plan assumes one flat, price-independent
+ * blended CAC — Exhibit 7 total spend / total acquisitions across all channels — not a
+ * price- or acceptance-elasticity-adjusted figure. This locks what used to be an acceptance-
+ * curve-rescaled effectiveCac. Per-channel CAC (see cacFor) is unaffected and still drives the
+ * ROI table's CAC column.
  */
+export const WEIGHTED_CAC_EUR = 44.01;
+
 export function effectiveCac(channel: MarketingChannel, retailPriceEur: number): number {
-  const base = cacFor(channel);
-  const acceptanceNow = acceptancePctAt(retailPriceEur);
-  if (acceptanceNow <= 0) return base * CAC_MULTIPLIER_BOUNDS[1];
-  const multiplier = ACCEPTANCE_AT_REFERENCE_PRICE / acceptanceNow;
-  return base * Math.min(Math.max(multiplier, CAC_MULTIPLIER_BOUNDS[0]), CAC_MULTIPLIER_BOUNDS[1]);
+  return WEIGHTED_CAC_EUR;
 }
 
 export function ltvAt(retailPriceEur: number, salesWeights: ChannelWeights, marketingChannel: MarketingChannel): number {
@@ -187,6 +183,104 @@ export function projectMonthlyVolume(budgetEur: number, marketingWeights: Market
     revenuePerMonthEur: unitsPerMonth * netPricePerUnit,
     contributionPerMonthEur: unitsPerMonth * contributionPerUnit,
   };
+}
+
+// --- Phase 2 gate check (Decision 001, "Default recommendation and modeling rules") ---
+
+export type GateCheck = { value: number; target: number; pass: boolean };
+export type Phase2Gates = {
+  margin: GateCheck;
+  cac: GateCheck;
+  ltvCac: GateCheck;
+  d2cRepeat: GateCheck;
+  allPass: boolean;
+};
+
+/**
+ * Pure pass/fail check against Decision 001's four Phase 2 gates. Takes already-observed
+ * trailing-three-month actuals — it does not compute or project them itself.
+ */
+export function checkPhase2Gates(trailing3MonthMetrics: {
+  blendedContributionMarginPct: number;
+  blendedCacEur: number;
+  ltvCacRatio: number;
+  d2cRepeatPurchaseRatePct: number;
+}): Phase2Gates {
+  const margin: GateCheck = {
+    value: trailing3MonthMetrics.blendedContributionMarginPct,
+    target: 35,
+    pass: trailing3MonthMetrics.blendedContributionMarginPct >= 35,
+  };
+  const cac: GateCheck = {
+    value: trailing3MonthMetrics.blendedCacEur,
+    target: 50,
+    pass: trailing3MonthMetrics.blendedCacEur <= 50,
+  };
+  const ltvCac: GateCheck = {
+    value: trailing3MonthMetrics.ltvCacRatio,
+    target: 2.5,
+    pass: trailing3MonthMetrics.ltvCacRatio >= 2.5,
+  };
+  const d2cRepeat: GateCheck = {
+    value: trailing3MonthMetrics.d2cRepeatPurchaseRatePct,
+    target: 25,
+    pass: trailing3MonthMetrics.d2cRepeatPurchaseRatePct >= 25,
+  };
+  return { margin, cac, ltvCac, d2cRepeat, allPass: margin.pass && cac.pass && ltvCac.pass && d2cRepeat.pass };
+}
+
+// --- 24-month cumulative payback projection (Decision 001 item 3) ---
+
+export type PaybackMonthPoint = {
+  month: number;
+  cumulativeContribution: number;
+  cumulativeSpend: number;
+  cumulativeCustomers: number;
+};
+export type Payback24MonthProjection = {
+  months: PaybackMonthPoint[];
+  paybackMonth: number | null;
+  ltvCac: number;
+};
+
+/**
+ * Decision 001 item 3: forecasts cover 24 months; payback is the first month cumulative
+ * contribution meets cumulative marketing spend. Composes Alvise's existing acceptance,
+ * contribution, and purchase-frequency logic with the flat WEIGHTED_CAC_EUR (Fix A) — a flat
+ * monthly budget acquires customers at that CAC, the growing customer base buys at
+ * BLENDED_PURCHASE_FREQUENCY_PER_MONTH, and contribution/spend accumulate month over month.
+ * No marketing-channel mix is taken here (there's no per-channel budget split at this level),
+ * so the LTV side of the ratio uses the simple average baseline LTV across all four marketing
+ * channels, rescaled the same way ltvAt does.
+ */
+export function projectPayback24Months(
+  retailPriceEur: number,
+  salesWeights: ChannelWeights,
+  monthlyBudgetEur: number,
+): Payback24MonthProjection {
+  const contributionPerUnit = blendedUnitContribution(retailPriceEur, salesWeights);
+  const newCustomersPerMonth = WEIGHTED_CAC_EUR > 0 ? monthlyBudgetEur / WEIGHTED_CAC_EUR : 0;
+
+  let cumulativeCustomers = 0;
+  let cumulativeContribution = 0;
+  let cumulativeSpend = 0;
+  let paybackMonth: number | null = null;
+  const months: PaybackMonthPoint[] = [];
+
+  for (let month = 1; month <= 24; month += 1) {
+    cumulativeCustomers += newCustomersPerMonth;
+    cumulativeSpend += monthlyBudgetEur;
+    const monthlyUnits = cumulativeCustomers * BLENDED_PURCHASE_FREQUENCY_PER_MONTH;
+    cumulativeContribution += monthlyUnits * contributionPerUnit;
+    if (paybackMonth === null && cumulativeContribution >= cumulativeSpend) paybackMonth = month;
+    months.push({ month, cumulativeContribution, cumulativeSpend, cumulativeCustomers });
+  }
+
+  const averageBaselineLtv =
+    MARKETING_CHANNELS.reduce((sum, ch) => sum + marketingFunnel.summaryByChannel[ch].avgLtvEstimateEur, 0) / MARKETING_CHANNELS.length;
+  const ltvCac = WEIGHTED_CAC_EUR > 0 ? (averageBaselineLtv * ltvRescaleFactor(retailPriceEur, salesWeights)) / WEIGHTED_CAC_EUR : 0;
+
+  return { months, paybackMonth, ltvCac };
 }
 
 // --- Launch timing: seasonality index + competitor promo intensity, by calendar month ---
