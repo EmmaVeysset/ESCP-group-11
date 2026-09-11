@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+.pnpm-store/
+dist/
+
+# Local configuration and secrets
+.env*
+!.env.example
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Generated, browser-consumable data (regenerate during the build)
+src/data/generated/*.json
+
+# Never commit ad-hoc extracts or exports of the customer survey
+data/raw-survey-extracts/
+data/**/*survey*extract*
+data/**/*survey*export*

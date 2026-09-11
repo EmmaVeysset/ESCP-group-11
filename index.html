@@ -3,89 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LUMEN | Germany launch cockpit</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="description" content="LUMEN Germany market-entry decision cockpit" />
+    <title>LUMEN Decision Cockpit</title>
   </head>
   <body>
-    <main class="shell">
-      <header class="hero">
-        <p class="eyebrow">LUMEN / Germany market entry</p>
-        <h1>Choose a launch that can earn its next step.</h1>
-        <p class="lede">A decision cockpit for the price, channel mix and timing trade-off—not a forecast disguised as certainty.</p>
-      </header>
-
-      <section class="recommendation" aria-labelledby="recommendation-title">
-        <div>
-          <p class="eyebrow">Recommended starting point</p>
-          <h2 id="recommendation-title">€2.19, led by DTC and gym & office</h2>
-          <p>Position LUMEN as an accessible clean-performance drink. Launch a controlled pilot in June–August, then earn grocery expansion with repeat and CAC evidence.</p>
-        </div>
-        <div class="recommendation-stat"><span id="recommendedMargin">€1.02</span><small>weighted contribution / unit</small></div>
-      </section>
-
-      <section class="grid controls" aria-label="Scenario controls">
-        <article class="card">
-          <p class="eyebrow">1 / Set shelf price</p>
-          <label for="price">Candidate price</label>
-          <select id="price">
-            <option value="1.79">€1.79 — maximum trial</option>
-            <option value="2.19" selected>€2.19 — balanced launch</option>
-            <option value="2.59">€2.59 — premium margin</option>
-          </select>
-          <p class="hint">Acceptance is based on the German price test. It is an intent signal, not a sales forecast.</p>
-        </article>
-        <article class="card mix-card">
-          <p class="eyebrow">2 / Allocate launch volume</p>
-          <div class="mix-row"><label for="dtc">DTC online <output id="dtcOut">40%</output></label><input id="dtc" type="range" min="0" max="100" value="40" /></div>
-          <div class="mix-row"><label for="gym">Gym & office <output id="gymOut">35%</output></label><input id="gym" type="range" min="0" max="100" value="35" /></div>
-          <div class="mix-row"><label for="retail">Retail / grocery <output id="retailOut">25%</output></label><input id="retail" type="range" min="0" max="100" value="25" /></div>
-          <p class="hint" id="mixHint">Mix totals 100%.</p>
-        </article>
-      </section>
-
-      <section class="metrics" aria-label="Scenario results">
-        <article class="metric"><span id="acceptance">51.7%</span><small>price-test acceptance</small></article>
-        <article class="metric"><span id="contribution">€1.02</span><small>weighted contribution / unit</small></article>
-        <article class="metric"><span id="margin">63.5%</span><small>weighted contribution margin</small></article>
-        <article class="metric"><span id="payback">43</span><small>units to recover typical CAC</small></article>
-      </section>
-
-      <section class="grid analysis">
-        <article class="card">
-          <p class="eyebrow">Channel economics</p>
-          <h2>Where each euro works hardest</h2>
-          <div id="channelBars" class="bars"></div>
-          <p class="footnote">Contribution uses the selected price and the economics in Exhibit 11.</p>
-        </article>
-        <article class="card">
-          <p class="eyebrow">Marketing reality check</p>
-          <h2>Acquisition is the constraint</h2>
-          <div class="table-wrap"><table><thead><tr><th>Channel</th><th>Avg. CAC</th><th>Avg. LTV</th><th>LTV:CAC</th></tr></thead><tbody id="marketingRows"></tbody></table></div>
-          <p class="footnote">All four historical marketing channels sit below the 3:1 target. Treat the pilot as a learning programme, not a scale commitment.</p>
-        </article>
-      </section>
-
-      <section class="grid analysis">
-        <article class="card">
-          <p class="eyebrow">Timing signal</p>
-          <h2>Open the pilot when demand is climbing</h2>
-          <div id="seasonality" class="seasonality"></div>
-          <p class="footnote">June–August offers the strongest demand indices (132–138–128). Start setup in April–May; use the first summer to test repeat.</p>
-        </article>
-        <article class="card decision">
-          <p class="eyebrow">The choice we are making</p>
-          <h2>Premium enough to fund learning; accessible enough to create trial.</h2>
-          <ul>
-            <li><strong>Positioning:</strong> clean energy and better taste for wellness professionals and fitness consumers—not a generic discount energy drink.</li>
-            <li><strong>First channels:</strong> DTC for customer learning and gym & office for credible trial. Keep grocery selective until repeat is proven.</li>
-            <li><strong>What we give up:</strong> €2.59’s unit margin and the immediate reach of a broad retail rollout.</li>
-            <li><strong>Gate to expand:</strong> validate repeat purchase and improve blended LTV:CAC to at least 3:1 before committing to wider grocery distribution.</li>
-          </ul>
-        </article>
-      </section>
-
-      <footer>Sources: LUMEN data room, Exhibits 7, 11 and 12. No respondent names, emails or row-level survey data are used or exposed.</footer>
-    </main>
-    <script src="app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
