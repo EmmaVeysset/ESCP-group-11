@@ -6,6 +6,7 @@ import { ChannelEconomicsChart } from './components/ChannelEconomicsChart';
 import { CHANNEL_COLOR } from './lib/colors';
 import { TimingChart } from './components/TimingChart';
 import { PaybackChart } from './components/PaybackChart';
+import { PhaseGateCard } from './components/PhaseGateCard';
 import { RoiTable } from './components/RoiTable';
 import {
   SALES_CHANNELS,
@@ -24,6 +25,8 @@ import {
   bestLaunchMonths,
   projectMonthlyVolume,
   projectPayback24Months,
+  checkPhase2Gates,
+  WEIGHTED_CAC_EUR,
   seasonalityFor,
   promoIntensityFor,
 } from './lib/model';
@@ -59,6 +62,11 @@ const FAST_PAYBACK_MARKETING_MIX: MarketingWeights = { 'Paid Social': 10, 'Influ
 
 const PREMIUM_BUILD_SALES_MIX: ChannelWeights = { 'DTC Online': 35, 'Retail/Grocery': 15, 'Gym & Office': 50 };
 const PREMIUM_BUILD_MARKETING_MIX: MarketingWeights = { 'Paid Social': 15, 'Influencer / Content': 55, 'Retail Sampling': 10, 'Referral / Subscription': 20 };
+
+// PLACEHOLDER — no real trailing D2C repeat-purchase data exists pre-launch; this does
+// NOT respond to price/mix/budget (unlike the other 3 Phase 2 gates). Needs real Phase 1
+// data before this gate is meaningful.
+const PLACEHOLDER_D2C_REPEAT_PURCHASE_RATE_PCT = 20;
 
 type Preset = { price: number; sales: ChannelWeights; marketing: MarketingWeights; month: number };
 
@@ -114,6 +122,12 @@ export function App() {
   const contributionIndexNow = contributionIndexPer1000(price, salesWeights);
   const projection = projectMonthlyVolume(budget, marketingWeights, price, salesWeights);
   const payback = useMemo(() => projectPayback24Months(price, salesWeights, budget), [price, salesWeights, budget]);
+  const gates = checkPhase2Gates({
+    blendedContributionMarginPct: marginNow,
+    blendedCacEur: WEIGHTED_CAC_EUR,
+    ltvCacRatio: payback.ltvCac,
+    d2cRepeatPurchaseRatePct: PLACEHOLDER_D2C_REPEAT_PURCHASE_RATE_PCT,
+  });
   const season = seasonalityFor(month);
   const promo = promoIntensityFor(month);
   const narrative = tradeoffNarrative(price, salesWeights, month);
@@ -277,6 +291,8 @@ export function App() {
               />
             </div>
           </Card>
+
+          <PhaseGateCard gates={gates} />
 
           <Card
             title="Price → acceptance & contribution trade-off"
