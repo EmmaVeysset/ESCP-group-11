@@ -5,6 +5,7 @@ import { PriceCurveChart } from './components/PriceCurveChart';
 import { ChannelEconomicsChart } from './components/ChannelEconomicsChart';
 import { CHANNEL_COLOR } from './lib/colors';
 import { TimingChart } from './components/TimingChart';
+import { PaybackChart } from './components/PaybackChart';
 import { RoiTable } from './components/RoiTable';
 import {
   SALES_CHANNELS,
@@ -22,6 +23,7 @@ import {
   bestSingleChannel,
   bestLaunchMonths,
   projectMonthlyVolume,
+  projectPayback24Months,
   seasonalityFor,
   promoIntensityFor,
 } from './lib/model';
@@ -96,6 +98,7 @@ export function App() {
   const contributionNow = blendedUnitContribution(price, salesWeights);
   const contributionIndexNow = contributionIndexPer1000(price, salesWeights);
   const projection = projectMonthlyVolume(budget, marketingWeights, price, salesWeights);
+  const payback = useMemo(() => projectPayback24Months(price, salesWeights, budget), [price, salesWeights, budget]);
   const season = seasonalityFor(month);
   const promo = promoIntensityFor(month);
   const narrative = tradeoffNarrative(price, salesWeights, month);
@@ -281,6 +284,34 @@ export function App() {
             <TimingChart selectedMonth={month} recommendedMonths={recommendedMonths} />
             <p className="mt-1 text-xs text-secondary">
               {MONTH_NAMES[month - 1]}: demand index {season.seasonalityIndex} (avg. temp {season.avgTempCelsius}°C), {promo.competitorsOnPromo}/{promo.competitorsObserved} competitors historically on promo.
+            </p>
+          </Card>
+
+          <Card
+            title="24-month payback horizon"
+            subtitle="Cumulative marketing contribution vs cumulative spend at current price, channel mix, and monthly budget"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <StatTile
+                label="Payback month"
+                value={payback.paybackMonth === null ? '—' : String(payback.paybackMonth)}
+                tone={payback.paybackMonth === null || payback.paybackMonth > 18 ? 'bad' : payback.paybackMonth <= 12 ? 'accent' : 'good'}
+              />
+              <StatTile
+                label="LTV:CAC"
+                value={`${payback.ltvCac.toFixed(1)}:1`}
+                tone={payback.ltvCac >= 3 ? 'accent' : payback.ltvCac >= 2.5 ? 'good' : 'bad'}
+              />
+            </div>
+            <div className="mt-3">
+              <PaybackChart months={payback.months} paybackMonth={payback.paybackMonth} />
+            </div>
+            {payback.paybackMonth === null && (
+              <p className="mt-1 text-xs text-warning">No payback within 24 months at current settings.</p>
+            )}
+            <p className="mt-1 text-xs text-secondary">
+              Payback = the month cumulative contribution (indigo) first exceeds cumulative marketing spend (slate). Decision 001 targets ≤12
+              months.
             </p>
           </Card>
 
