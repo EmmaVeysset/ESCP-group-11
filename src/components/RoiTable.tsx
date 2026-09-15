@@ -5,7 +5,7 @@ export function RoiTable({ price, salesWeights }: { price: number; salesWeights:
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="text-left text-[#61706d]">
+        <tr className="text-left text-secondary">
           <th className="pb-2 font-medium">Acquisition channel</th>
           <th className="pb-2 font-medium text-right">CAC</th>
           <th className="pb-2 font-medium text-right">LTV:CAC</th>
@@ -18,13 +18,15 @@ export function RoiTable({ price, salesWeights }: { price: number; salesWeights:
           const payback = paybackMonths(price, salesWeights, channel);
           const healthy = ratio >= 3;
           return (
-            <tr key={channel} className="border-t border-[#e2e5df]">
-              <td className="py-2">{channel}</td>
-              <td className="py-2 text-right tabular-nums">{eur(cacFor(channel), 0)}</td>
-              <td className={`py-2 text-right tabular-nums font-semibold ${healthy ? 'text-[#2f6f5e]' : 'text-[#b34747]'}`}>
+            <tr key={channel} className="border-t border-border">
+              <td className="py-2 text-primary">{channel}</td>
+              <td className="py-2 text-right tabular-nums text-primary">{eur(cacFor(channel), 0)}</td>
+              <td className={`py-2 text-right tabular-nums font-semibold ${healthy ? 'text-accent' : 'text-warning'}`}>
                 {ratio.toFixed(1)}:1
               </td>
-              <td className="py-2 text-right tabular-nums">{Number.isFinite(payback) ? `${payback.toFixed(1)} mo` : '—'}</td>
+              <td className={`py-2 text-right tabular-nums ${healthy ? 'text-accent font-semibold' : 'text-primary'}`}>
+                {Number.isFinite(payback) ? `${payback.toFixed(1)} mo` : '—'}
+              </td>
             </tr>
           );
         })}

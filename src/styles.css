@@ -1,9 +1,28 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Slugs are chosen so Tailwind v4's @theme generates clean
+ * utility classes (bg-page, bg-card, text-primary, text-accent-soft, ...);
+ * the values match the requested --bg-page/--text-primary/etc. palette.
+ */
+@theme {
+  --color-page: #FAFAFA;
+  --color-card: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-primary: #0F172A;
+  --color-secondary: #64748B;
+  --color-tertiary: #94A3B8;
+  --color-accent: #4F46E5;
+  --color-accent-hover: #4338CA;
+  --color-accent-soft: #EEF2FF;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+}
+
 :root {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #1c2b2d;
-  background: #f7f8f5;
+  color: var(--color-primary);
+  background: var(--color-page);
 }
 
 body {
@@ -11,7 +30,7 @@ body {
 }
 
 .eyebrow {
-  color: #61706d;
+  color: var(--color-secondary);
   font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
