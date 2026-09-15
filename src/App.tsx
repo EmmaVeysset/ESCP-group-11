@@ -103,8 +103,8 @@ export function App() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <p className="eyebrow">LUMEN · Germany market entry</p>
-      <h1 className="mt-1 text-4xl font-bold leading-tight text-[#1c2b2d] sm:text-5xl">Decision Cockpit</h1>
-      <p className="mt-2 max-w-2xl text-[#3c4a47]">
+      <h1 className="mt-1 text-4xl font-semibold leading-tight text-primary sm:text-5xl">Decision Cockpit</h1>
+      <p className="mt-2 max-w-2xl text-secondary">
         At what price, through which channel(s), and roughly when should LUMEN launch in Germany — and what are we
         deliberately choosing not to optimise for by picking it? Move the controls; every number recalculates from the
         data room live.
@@ -122,7 +122,9 @@ export function App() {
             key={key}
             onClick={() => applyPreset(key)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              activePreset === key ? 'bg-[#1c2b2d] text-white' : 'bg-white text-[#3c4a47] ring-1 ring-[#d7dad2] hover:ring-[#2f6f5e]'
+              activePreset === key
+                ? 'bg-accent text-white hover:bg-accent-hover'
+                : 'border border-border bg-card text-primary hover:border-accent'
             }`}
           >
             {label}
@@ -144,9 +146,9 @@ export function App() {
               max={3.49}
               step={0.01}
               valueLabel={eur(price)}
-              accent="#2f6f5e"
+              accent="#4F46E5"
             />
-            <div className="mt-3 flex justify-between text-[11px] leading-tight text-[#61706d]">
+            <div className="mt-3 flex justify-between text-[11px] leading-tight text-secondary">
               <span>PulsUp
                 <br />€1.0–1.3</span>
               <span>Mate Libre
@@ -181,14 +183,14 @@ export function App() {
 
           <Card title="Marketing budget & mix" subtitle="Monthly spend, split across acquisition channels">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-[#3c4a47]">Monthly budget</span>
+              <span className="text-secondary">Monthly budget</span>
               <input
                 type="number"
                 min={0}
                 step={1000}
                 value={budget}
                 onChange={(e) => setBudget(Number.parseFloat(e.target.value) || 0)}
-                className="rounded-lg border border-[#d7dad2] bg-white px-3 py-1.5 text-sm tabular-nums"
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm tabular-nums text-primary focus:border-accent focus:outline-none"
               />
             </label>
             <div className="mt-3 flex flex-col gap-3">
@@ -221,10 +223,10 @@ export function App() {
                     onClick={() => setMonth(m)}
                     className={`rounded-lg py-1.5 text-xs font-medium transition ${
                       m === month
-                        ? 'bg-[#1c2b2d] text-white'
+                        ? 'bg-accent text-white'
                         : recommended
-                          ? 'bg-[#e4efe9] text-[#2f6f5e] hover:bg-[#d3e6dc]'
-                          : 'bg-[#f1f3ee] text-[#61706d] hover:bg-[#e2e5df]'
+                          ? 'bg-accent-soft text-accent hover:bg-accent/20'
+                          : 'border border-border bg-card text-secondary hover:border-accent'
                     }`}
                   >
                     {label}
@@ -232,7 +234,7 @@ export function App() {
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-[#61706d]">Highlighted months: rising seasonal demand, low historical competitor promo activity.</p>
+            <p className="mt-2 text-xs text-secondary">Highlighted months: rising seasonal demand, low historical competitor promo activity.</p>
           </Card>
         </div>
 
@@ -240,7 +242,7 @@ export function App() {
           <Card>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <StatTile label="Price acceptance" value={pct(acceptanceNow, 0)} hint="of surveyed Germans" />
-              <StatTile label="Blended margin" value={pct(marginNow, 0)} hint="contribution / net price" />
+              <StatTile label="Blended margin" value={pct(marginNow, 0)} hint="contribution / net price" tone="accent" />
               <StatTile label="Contribution / unit" value={eur(contributionNow)} />
               <StatTile
                 label="Model's optimal price"
@@ -249,7 +251,12 @@ export function App() {
                 tone={Math.abs(optimal.priceEur - price) < 0.05 ? 'good' : 'default'}
               />
               <StatTile label="Est. acquired customers / mo" value={num0(projection.acquiredCustomers)} hint={`at ${eur0(budget)}/mo budget`} />
-              <StatTile label="Est. contribution / mo" value={eur0(projection.contributionPerMonthEur)} hint={`${num0(projection.unitsPerMonth)} units/mo`} />
+              <StatTile
+                label="Est. contribution / mo"
+                value={eur0(projection.contributionPerMonthEur)}
+                hint={`${num0(projection.unitsPerMonth)} units/mo`}
+                tone="accent"
+              />
             </div>
           </Card>
 
@@ -258,21 +265,21 @@ export function App() {
             subtitle="Acceptance (grey, left axis) falls as price rises; contribution index — acceptance × unit margin per 1,000 addressable people — (green, right axis) peaks where the trade-off is best."
           >
             <PriceCurveChart weights={salesWeights} currentPrice={price} optimalPrice={optimal.priceEur} />
-            <p className="mt-1 text-xs text-[#61706d]">
+            <p className="mt-1 text-xs text-secondary">
               Dashed line: your price. Dot: the price that maximizes contribution index for your current channel mix ({eur(optimal.priceEur)}, index {num0(optimal.contributionIndex)}).
             </p>
           </Card>
 
           <Card title="Channel economics at this price" subtitle={`Retail price ${eur(price)} split into COGS (grey) and LUMEN's contribution (colour) per channel`}>
             <ChannelEconomicsChart price={price} activeChannels={new Set(SALES_CHANNELS.filter((ch) => salesWeights[ch] > 0))} />
-            <p className="mt-1 text-xs text-[#61706d]">
+            <p className="mt-1 text-xs text-secondary">
               Best single channel at its own optimal price: <strong>{bestChannel.channel}</strong> at {eur(bestChannel.priceEur)} (contribution index {num0(bestChannel.contributionIndex)}).
             </p>
           </Card>
 
-          <Card title="Launch timing" subtitle="Seasonal demand index (bars) vs. competitor promo pressure (red line)">
+          <Card title="Launch timing" subtitle="Seasonal demand index (bars) vs. competitor promo pressure (amber line)">
             <TimingChart selectedMonth={month} recommendedMonths={recommendedMonths} />
-            <p className="mt-1 text-xs text-[#61706d]">
+            <p className="mt-1 text-xs text-secondary">
               {MONTH_NAMES[month - 1]}: demand index {season.seasonalityIndex} (avg. temp {season.avgTempCelsius}°C), {promo.competitorsOnPromo}/{promo.competitorsObserved} competitors historically on promo.
             </p>
           </Card>
@@ -281,24 +288,24 @@ export function App() {
             <RoiTable price={price} salesWeights={salesWeights} />
           </Card>
 
-          <Card title="What we're deliberately not optimizing for" className="border-[#d9c9a8] bg-[#fbf6ec]">
-            <p className="text-sm text-[#3c4a47]">
+          <Card title="What we're deliberately not optimizing for" className="border-border bg-accent-soft">
+            <p className="text-sm text-primary">
               At {eur(price)} with this channel mix: {pct(acceptanceNow, 0)} acceptance, {pct(marginNow, 0)} blended margin, contribution index {num0(contributionIndexNow)} per 1,000 addressable people.
             </p>
             {narrative.bullets.length > 0 ? (
-              <ul className="mt-3 flex flex-col gap-2 text-sm text-[#3c4a47]">
+              <ul className="mt-3 flex flex-col gap-2 text-sm text-primary">
                 {narrative.bullets.map((b, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#b7833f]" />
+                    <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />
                     <span>{b}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-[#3c4a47]">This selection is close to every optimum the model can see — Jonas and Elena's asks are, for once, not in tension here.</p>
+              <p className="mt-3 text-sm text-primary">This selection is close to every optimum the model can see — Jonas and Elena's asks are, for once, not in tension here.</p>
             )}
             {eurostatValidation.status === 'ok' && (
-              <p className="mt-3 border-t border-[#e2d5b8] pt-3 text-xs text-[#61706d]">
+              <p className="mt-3 border-t border-border pt-3 text-xs text-secondary">
                 Cross-check: our functional-beverage market for {eurostatValidation.year} ({eur(eurostatValidation.ourTotalEur / 1e9, 2)}bn) is
                 ~{pct(eurostatValidation.categoryShare * 100, 0)} of Germany's total non-alcoholic beverage spend that year — Eurostat records{' '}
                 {eur(eurostatValidation.eurostatValueEur, 2)}/person × {(eurostatValidation.eurostatImpliedPopulation / 1e6).toFixed(1)}M residents ≈{' '}

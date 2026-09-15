@@ -19,9 +19,9 @@ export function Slider({
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="flex items-center justify-between text-[#3c4a47]">
+      <span className="flex items-center justify-between text-secondary">
         <span>{label}</span>
-        <span className="font-semibold tabular-nums" style={accent ? { color: accent } : undefined}>
+        <span className="font-semibold tabular-nums text-accent" style={accent ? { color: accent } : undefined}>
           {valueLabel}
         </span>
       </span>
@@ -32,7 +32,8 @@ export function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number.parseFloat(e.target.value))}
-        className="w-full accent-[#2f6f5e]"
+        className="w-full accent-accent"
+        style={accent ? { accentColor: accent } : undefined}
       />
     </label>
   );

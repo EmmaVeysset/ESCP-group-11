@@ -2,21 +2,32 @@ import type { ReactNode } from 'react';
 
 export function Card({ title, subtitle, children, className = '' }: { title?: string; subtitle?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-[#e2e5df] bg-white/70 p-5 shadow-sm ${className}`}>
-      {title && <h2 className="text-base font-semibold text-[#1c2b2d]">{title}</h2>}
-      {subtitle && <p className="mt-0.5 text-sm text-[#61706d]">{subtitle}</p>}
+    <section className={`rounded-xl border border-border bg-card p-5 shadow-sm ${className}`}>
+      {title && <h2 className="text-base font-semibold text-text-primary">{title}</h2>}
+      {subtitle && <p className="mt-0.5 text-sm text-text-secondary">{subtitle}</p>}
       <div className={title || subtitle ? 'mt-4' : ''}>{children}</div>
     </section>
   );
 }
 
-export function StatTile({ label, value, hint, tone = 'default' }: { label: string; value: string; hint?: string; tone?: 'default' | 'good' | 'bad' }) {
-  const toneClass = tone === 'good' ? 'text-[#2f6f5e]' : tone === 'bad' ? 'text-[#b34747]' : 'text-[#1c2b2d]';
+export function StatTile({
+  label,
+  value,
+  hint,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'default' | 'good' | 'bad' | 'accent';
+}) {
+  const toneClass =
+    tone === 'good' ? 'text-success' : tone === 'bad' ? 'text-warning' : tone === 'accent' ? 'text-accent' : 'text-primary';
   return (
-    <div className="rounded-xl bg-[#f1f3ee] px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-[#61706d]">{label}</p>
+    <div className="rounded-xl bg-page px-4 py-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-secondary">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${toneClass}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-[#61706d]">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-secondary">{hint}</p>}
     </div>
   );
 }
