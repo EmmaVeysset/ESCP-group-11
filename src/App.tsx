@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, StatTile } from './components/Card';
 import { Slider } from './components/Slider';
 import { PriceCurveChart } from './components/PriceCurveChart';
@@ -29,6 +29,7 @@ import {
 } from './lib/model';
 import { tradeoffNarrative } from './lib/insights';
 import { eur, eur0, pct, num0 } from './lib/format';
+import { GERMAN_CITIES, fetchMonthlyForecast, type CityKey, type WeatherForecastResult } from './lib/weather';
 import eurostatValidationRaw from './data/generated/eurostat-validation.json';
 
 // The JSON import's inferred type would otherwise reflect whatever this file's *current*
@@ -79,6 +80,20 @@ export function App() {
   const [budget, setBudget] = useState(20000);
   const [month, setMonth] = useState(PRESETS.balanced.month);
   const [activePreset, setActivePreset] = useState<'balanced' | 'fastPayback' | 'premiumBuild' | 'custom'>('balanced');
+  const [selectedCity, setSelectedCity] = useState<CityKey>('berlin');
+  const [forecastCache, setForecastCache] = useState<Partial<Record<CityKey, WeatherForecastResult>>>({});
+
+  useEffect(() => {
+    if (forecastCache[selectedCity]) return; // cache hit — no network request
+    const controller = new AbortController();
+    fetchMonthlyForecast(selectedCity, controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
+      setForecastCache((prev) => ({ ...prev, [selectedCity]: result }));
+    });
+    return () => controller.abort();
+  }, [selectedCity, forecastCache]);
+
+  const forecast = forecastCache[selectedCity];
 
   const applyPreset = (key: 'balanced' | 'fastPayback' | 'premiumBuild') => {
     const preset = PRESETS[key];
@@ -280,8 +295,28 @@ export function App() {
             </p>
           </Card>
 
-          <Card title="Launch timing" subtitle="Seasonal demand index (bars) vs. competitor promo pressure (amber line)">
-            <TimingChart selectedMonth={month} recommendedMonths={recommendedMonths} />
+          <Card
+            title="Launch timing"
+            subtitle="Seasonal demand index (bars) vs. competitor promo pressure (amber line) vs. live forecast temperature (sky-blue line)"
+          >
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {(Object.entries(GERMAN_CITIES) as [CityKey, (typeof GERMAN_CITIES)[CityKey]][]).map(([key, city]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedCity(key)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    selectedCity === key ? 'bg-accent text-white' : 'border border-border bg-card text-primary hover:border-accent'
+                  }`}
+                >
+                  {city.label}
+                </button>
+              ))}
+              {forecast === undefined && <span className="text-xs text-tertiary">Loading forecast…</span>}
+            </div>
+            <TimingChart selectedMonth={month} recommendedMonths={recommendedMonths} forecastPoints={forecast?.status === 'ok' ? forecast.points : []} />
+            {(forecast?.status === 'unreachable' || forecast?.status === 'error') && (
+              <p className="mt-1 text-xs text-tertiary">Live forecast temporarily unavailable.</p>
+            )}
             <p className="mt-1 text-xs text-secondary">
               {MONTH_NAMES[month - 1]}: demand index {season.seasonalityIndex} (avg. temp {season.avgTempCelsius}°C), {promo.competitorsOnPromo}/{promo.competitorsObserved} competitors historically on promo.
             </p>
